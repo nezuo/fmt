@@ -1,8 +1,8 @@
 --< Module >--
 -- TODO: Errors
 -- TODO: Visitor pattern?
-local function fmt(template, ...)
-    local buffer = ""
+
+local function writeFmt(buffer, template, ...)
     local numOfParams = 0
     local currentArg = 0
     local index = 1
@@ -22,11 +22,11 @@ local function fmt(template, ...)
             local charAfterBrace = string.sub(template, openBrace + 1, openBrace + 1)
 
             if charAfterBrace == "{" then
-                buffer ..= "{"
+                buffer:write("{")
                 index = openBrace + 2
             else
                 if openBrace - index > 0 then
-                    buffer ..= string.sub(template, index, openBrace - 1)
+                    buffer:write(string.sub(template, index, openBrace - 1))
                 end
 
                 if closeBrace == nil then
@@ -45,7 +45,7 @@ local function fmt(template, ...)
                         error("Invalid positional argument " .. positionalParam .. " (there " .. argsPrefix .. #args .. argsSuffix)
                     end
 
-                    buffer ..= tostring(args[positionalParam])
+                    buffer:write(tostring(args[positionalParam]))
                 else
                     currentArg += 1
                     numOfParams += 1
@@ -53,7 +53,7 @@ local function fmt(template, ...)
                     local arg = args[currentArg]
 
                     if formatSpecifier == "" then
-                        buffer ..= tostring(arg)
+                        buffer:write(tostring(arg))
                     else
                         error("Unsupported format specifier " .. formatSpecifier, 2) -- TODO: Copy rust error.
                     end
@@ -65,13 +65,13 @@ local function fmt(template, ...)
             local charAfterBrace = string.sub(template, closeBrace + 1, closeBrace + 1)
 
             if charAfterBrace == "}" then
-                buffer ..= "}"
+                buffer:write("}")
                 index = closeBrace + 2
             else
                 error("Unmatched '}'. If you intended to write '}', you can escape it using '}}'.")
             end
         else
-            buffer ..= string.sub(template, index)
+            buffer:write(string.sub(template, index))
 
             break
         end
@@ -90,8 +90,28 @@ local function fmt(template, ...)
 
         error(numOfParams .. paramSuffix .. "found in template string, but there " .. argsPrefix .. #args .. argsSuffix)
     end
+end
+
+local function outputBuffer()
+    local buffer = {}
+
+    function buffer:write(value)
+        table.insert(self, value)
+    end
+
+    function buffer:finish()
+        return table.concat(self, "")
+    end
 
     return buffer
+end
+
+local function fmt(template, ...)
+    local buffer = outputBuffer()
+    
+    writeFmt(buffer, template, ...)
+
+    return buffer:finish()
 end
 
 return fmt
