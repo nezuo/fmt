@@ -1,6 +1,6 @@
 --< Module >--
 local function writeToBuffer(buffer, value)
-    buffer ..= value
+    table.insert(buffer, value)
 end
 
 local function fmt(template, ...)
@@ -10,10 +10,15 @@ local function fmt(template, ...)
     
     while index <= #template do
         local openBrace = string.find(template, "{", index)
+        local closeBrace = string.find(template, "}", index)
 
         if openBrace == nil then
             writeToBuffer(buffer, string.sub(template, index))
             break
+            --index += 1
+        elseif closeBrace ~= nil then
+            --writeToBuffer(buffer, string.sub(template, index, closeBrace))
+            --index = closeBrace + 2
         else
             local charAfterBrace = string.sub(template, openBrace + 1, openBrace + 1)
 
@@ -26,7 +31,7 @@ local function fmt(template, ...)
                 end
 
                 local closeBrace = string.find(template, "}", openBrace + 1)
-                assert(closeBrace ~= nil, "Unclosed formatting specifier. Use '{{' to write an open brace.") -- TODO: Copy rust error.
+                assert(closeBrace ~= nil, "Invalid format string: Expected a '}' to close format specifier. If you intended to write '{', you can escape it using '{{'.")
 
                 local formatSpecifier = string.sub(template, openBrace + 1, closeBrace - 1)
                 currentArg += 1
