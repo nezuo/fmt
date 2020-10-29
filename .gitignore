@@ -1,0 +1,6 @@
+# Roblox standard library
+/roblox.toml
+
+# Roblox Studio lock files
+/*.rbxlx.lock
+/*.rbxl.lock
