@@ -1,0 +1,24 @@
+{
+	"name": "fmt",
+	"tree": {
+		"$className": "DataModel",
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"fmt": {
+				"$path": "./src"
+			}
+		},
+		"TestService": {
+			"$className": "TestService",
+			"$properties": {
+				"ExecuteWithStudioRun": true
+			},
+			"runTests": {
+				"$path": "./test/runTests.server.lua"
+			},
+			"TestEZ": {
+				"$path": "./dependencies/testez/src"
+			}
+		}
+	}
+}
