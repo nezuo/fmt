@@ -1,5 +1,6 @@
 --< Module >--
--- TODO: Positional arguments.
+-- TODO: Errors
+-- TODO: Visitor pattern?
 local function fmt(template, ...)
     local buffer = ""
     local numOfParams = 0
@@ -32,14 +33,23 @@ local function fmt(template, ...)
                 end
 
                 local formatSpecifier = string.sub(template, openBrace + 1, closeBrace - 1)
-                currentArg += 1
-                numOfParams += 1
-                local arg = args[currentArg]
+                local positionalArg = tonumber(formatSpecifier)
 
-                if formatSpecifier == "" then
-                    buffer ..= tostring(arg)
+                if positionalArg ~= nil then
+                    -- TODO: Error for invalid positional arguments
+
+                    buffer ..= tostring(args[positionalArg])
                 else
-                    error("Unsupported format specifier " .. formatSpecifier, 2) -- TODO: Copy rust error.
+                    currentArg += 1
+                    numOfParams += 1
+
+                    local arg = args[currentArg]
+
+                    if formatSpecifier == "" then
+                        buffer ..= tostring(arg)
+                    else
+                        error("Unsupported format specifier " .. formatSpecifier, 2) -- TODO: Copy rust error.
+                    end
                 end
 
                 index = closeBrace + 1

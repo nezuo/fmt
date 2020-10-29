@@ -39,6 +39,10 @@ return function()
         expect(fmt("Hello, {}!", "Micah")).to.equal("Hello, Micah!")
     end)
 
+    it("should format positional parameters", function()
+        expect(fmt("{2} {} {1} {}", 1, 2)).to.equal("2 1 1 2")
+    end)
+
     it("should return open brace literal", function()
         expect(fmt("{{")).to.equal("{")
     end)
