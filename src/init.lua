@@ -6,6 +6,7 @@ local function fmt(template, ...)
     local numOfParams = 0
     local currentArg = 0
     local index = 1
+    local maxPositionalParam = 0
     local args = {...}
 
     while index <= #template do
@@ -29,16 +30,22 @@ local function fmt(template, ...)
                 end
 
                 if closeBrace == nil then
-                    error("Invalid format string: Expected a '}' to close format specifier. If you intended to write '{', you can escape it using '{{'.")
+                    error("Expected a '}' to close format specifier. If you intended to write '{', you can escape it using '{{'.")
                 end
 
                 local formatSpecifier = string.sub(template, openBrace + 1, closeBrace - 1)
-                local positionalArg = tonumber(formatSpecifier)
+                local positionalParam = charAfterBrace ~= "-" and tonumber(formatSpecifier) or nil
 
-                if positionalArg ~= nil then
-                    -- TODO: Error for invalid positional arguments
+                if positionalParam ~= nil then
+                    maxPositionalParam = math.max(maxPositionalParam, positionalParam)
 
-                    buffer ..= tostring(args[positionalArg])
+                    if positionalParam > #args then
+                        local argsPrefix = #args == 1 and "is " or "are "
+                        local argsSuffix = #args == 1 and " argument)." or " arguments)."
+                        error("Invalid positional argument " .. positionalParam .. " (there " .. argsPrefix .. #args .. argsSuffix)
+                    end
+
+                    buffer ..= tostring(args[positionalParam])
                 else
                     currentArg += 1
                     numOfParams += 1
@@ -61,13 +68,19 @@ local function fmt(template, ...)
                 buffer ..= "}"
                 index = closeBrace + 2
             else
-                error("Invalid format string: Unmatched '}'. If you intended to write '}', you can escape it using '}}'.")
+                error("Unmatched '}'. If you intended to write '}', you can escape it using '}}'.")
             end
         else
             buffer ..= string.sub(template, index)
 
             break
         end
+    end
+
+    if maxPositionalParam ~= 0 and maxPositionalParam < #args then
+        local argsPrefix = #args == 1 and "is " or "are "
+        local argsSuffix = #args == 1 and " argument)." or " arguments)."
+        error("Invalid positional argument " .. maxPositionalParam .. " (there " .. argsPrefix .. #args .. argsSuffix)
     end
 
     if numOfParams ~= #args then
