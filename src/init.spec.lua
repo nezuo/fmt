@@ -10,7 +10,7 @@ return function()
     it("should throw when close brace has no mathching open brace", function()
         expect(function()
             fmt("}")
-        end).to.throw() -- TODO: Add error
+        end).to.throw("Invalid format string: Unmatched '}'. If you intended to write '}', you can escape it using '}}'.")
     end)
 
     it("should return an identical string", function()
