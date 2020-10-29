@@ -10,30 +10,30 @@ local function writeFmt(buffer, template, ...)
     local args = {...}
 
     while index <= #template do
-        local openBrace = string.find(template, "{", index)
-        local closeBrace = string.find(template, "}", index)
+        --local openBrace = string.find(template, "{", index)
+        --local closeBrace = string.find(template, "}", index)
 
-        local isOpenBraceFirst = true
-        if openBrace ~= nil and closeBrace ~= nil and closeBrace < openBrace then
-            isOpenBraceFirst = false
-        end
+        local brace = string.find(template, "[%{%}]", index)
+        local braceType = brace and string.sub(template, brace, brace)
 
-        if openBrace ~= nil and isOpenBraceFirst then
-            local charAfterBrace = string.sub(template, openBrace + 1, openBrace + 1)
+        if braceType == "{" then
+            local charAfterBrace = string.sub(template, brace + 1, brace + 1)
 
             if charAfterBrace == "{" then
                 buffer:write("{")
-                index = openBrace + 2
+                index = brace + 2
             else
-                if openBrace - index > 0 then
-                    buffer:write(string.sub(template, index, openBrace - 1))
+                local closeBrace = string.find(template, "}", brace + 1)
+
+                if brace - index > 0 then
+                    buffer:write(string.sub(template, index, brace - 1))
                 end
 
                 if closeBrace == nil then
                     error("Expected a '}' to close format specifier. If you intended to write '{', you can escape it using '{{'.")
                 end
 
-                local formatSpecifier = string.sub(template, openBrace + 1, closeBrace - 1)
+                local formatSpecifier = string.sub(template, brace + 1, closeBrace - 1)
                 local positionalParam = charAfterBrace ~= "-" and tonumber(formatSpecifier) or nil
 
                 if positionalParam ~= nil then
@@ -61,12 +61,12 @@ local function writeFmt(buffer, template, ...)
 
                 index = closeBrace + 1
             end
-        elseif closeBrace ~= nil then
-            local charAfterBrace = string.sub(template, closeBrace + 1, closeBrace + 1)
+        elseif braceType == "}" then
+            local charAfterBrace = string.sub(template, brace + 1, brace + 1)
 
             if charAfterBrace == "}" then
                 buffer:write("}")
-                index = closeBrace + 2
+                index = brace + 2
             else
                 error("Unmatched '}'. If you intended to write '}', you can escape it using '}}'.")
             end
