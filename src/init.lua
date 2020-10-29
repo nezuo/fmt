@@ -1,11 +1,11 @@
 --< Module >--
 -- TODO: Positional arguments.
--- TODO: Error when given the wrong number of arguments.
-
 local function fmt(template, ...)
     local buffer = ""
+    local numOfParams = 0
     local currentArg = 0
     local index = 1
+    local args = {...}
 
     while index <= #template do
         local openBrace = string.find(template, "{", index)
@@ -33,7 +33,8 @@ local function fmt(template, ...)
 
                 local formatSpecifier = string.sub(template, openBrace + 1, closeBrace - 1)
                 currentArg += 1
-                local arg = select(currentArg, ...)
+                numOfParams += 1
+                local arg = args[currentArg]
 
                 if formatSpecifier == "" then
                     buffer ..= tostring(arg)
@@ -57,6 +58,14 @@ local function fmt(template, ...)
 
             break
         end
+    end
+
+    if numOfParams ~= #args then
+        local paramSuffix = numOfParams == 1 and " parameter " or " parameters "
+        local argsPrefix = #args == 1 and "is " or "are "
+        local argsSuffix = #args == 1 and " argument." or " arguments."
+
+        error(numOfParams .. paramSuffix .. "found in template string, but there " .. argsPrefix .. #args .. argsSuffix)
     end
 
     return buffer
