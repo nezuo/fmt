@@ -1,117 +1,130 @@
---< Module >--
 -- TODO: Errors
--- TODO: Visitor pattern?
 
-local function writeFmt(buffer, template, ...)
-    local numOfParams = 0
-    local currentArg = 0
-    local index = 1
-    local maxPositionalParam = 0
-    local args = {...}
+--< Classes >--
+local Formatter = {}
+Formatter.__index = Formatter
 
-    while index <= #template do
-        --local openBrace = string.find(template, "{", index)
-        --local closeBrace = string.find(template, "}", index)
+function Formatter.new()
+    local self = setmetatable({}, Formatter)
+    
+    self.buffer = {}
 
-        local brace = string.find(template, "[%{%}]", index)
-        local braceType = brace and string.sub(template, brace, brace)
+    return self
+end
 
-        if braceType == "{" then
-            local charAfterBrace = string.sub(template, brace + 1, brace + 1)
+function Formatter:write(value)
+    table.insert(self.buffer, value)
+end
 
-            if charAfterBrace == "{" then
-                buffer:write("{")
-                index = brace + 2
-            else
-                local closeBrace = string.find(template, "}", brace + 1)
+function Formatter:formatCloseBrace(charAfterBrace)
+    if charAfterBrace ~= "}" then
+        error("Unmatched '}'. If you intended to write '}', you can escape it using '}}'.")
+    end
+end
 
-                if brace - index > 0 then
-                    buffer:write(string.sub(template, index, brace - 1))
-                end
+function Formatter:formatOpenBrace(charAfterBrace)
+    local closeBrace = string.find(self.template, "}", self.brace + 1)
 
-                if closeBrace == nil then
-                    error("Expected a '}' to close format specifier. If you intended to write '{', you can escape it using '{{'.")
-                end
+    if self.brace - self.index > 0 then
+        self:write(string.sub(self.template, self.index, self.brace - 1))
+    end
 
-                local formatSpecifier = string.sub(template, brace + 1, closeBrace - 1)
-                local positionalParam = charAfterBrace ~= "-" and tonumber(formatSpecifier) or nil
+    if closeBrace == nil then
+        error("Expected a '}' to close format specifier. If you intended to write '{', you can escape it using '{{'.")
+    end
 
-                if positionalParam ~= nil then
-                    maxPositionalParam = math.max(maxPositionalParam, positionalParam)
+    local formatSpecifier = string.sub(self.template, self.brace + 1, closeBrace - 1)
+    local positionalParam = charAfterBrace ~= "-" and tonumber(formatSpecifier) or nil
 
-                    if positionalParam > #args then
-                        local argsPrefix = #args == 1 and "is " or "are "
-                        local argsSuffix = #args == 1 and " argument)." or " arguments)."
-                        error("Invalid positional argument " .. positionalParam .. " (there " .. argsPrefix .. #args .. argsSuffix)
-                    end
+    if positionalParam ~= nil then
+        self.biggestPositionalParam = math.max(self.biggestPositionalParam, positionalParam)
 
-                    buffer:write(tostring(args[positionalParam]))
-                else
-                    currentArg += 1
-                    numOfParams += 1
+        if positionalParam > #self.args then
+            local argsPrefix = #self.args == 1 and "is " or "are "
+            local argsSuffix = #self.args == 1 and " argument)." or " arguments)."
+            error("Invalid positional argument " .. positionalParam .. " (there " .. argsPrefix .. #self.args .. argsSuffix)
+        end
 
-                    local arg = args[currentArg]
+        self:write(tostring(self.args[positionalParam]))
+    else
+        self.currentArg += 1
+        self.numOfParams += 1
 
-                    if formatSpecifier == "" then
-                        buffer:write(tostring(arg))
-                    else
-                        error("Unsupported format specifier " .. formatSpecifier, 2) -- TODO: Copy rust error.
-                    end
-                end
+        local arg = self.args[self.currentArg]
 
-                index = closeBrace + 1
+        if formatSpecifier == "" then
+            self:write(tostring(arg))
+        else
+            error("Unsupported format specifier " .. formatSpecifier, 2) -- TODO: Copy rust error.
+        end
+    end
+
+    self.index = closeBrace + 1
+end
+
+function Formatter:writeFmt(template, ...)
+    self.args = {...}
+    self.biggestPositionalParam = 0
+    self.currentArg = 0
+    self.index = 1
+    self.numOfParams = 0
+    self.template = template
+    
+    while self.index <= #template do
+        self.brace = string.find(template, "[%{%}]", self.index)
+
+        if self.brace then
+            local braceType = string.sub(template, self.brace, self.brace)
+            local charAfterBrace = string.sub(template, self.brace + 1, self.brace + 1)
+
+            -- Format brace literals.
+            if charAfterBrace == braceType then
+                self:write(braceType)
+                self.index = self.brace + 2
+    
+                continue
             end
-        elseif braceType == "}" then
-            local charAfterBrace = string.sub(template, brace + 1, brace + 1)
-
-            if charAfterBrace == "}" then
-                buffer:write("}")
-                index = brace + 2
-            else
-                error("Unmatched '}'. If you intended to write '}', you can escape it using '}}'.")
+    
+            if braceType == "{" then
+                self:formatOpenBrace(charAfterBrace)
+            elseif braceType == "}" then
+                self:formatCloseBrace(charAfterBrace)
             end
         else
-            buffer:write(string.sub(template, index))
+            self:write(string.sub(template, self.index))
 
             break
         end
     end
 
-    if maxPositionalParam ~= 0 and maxPositionalParam < #args then
-        local argsPrefix = #args == 1 and "is " or "are "
-        local argsSuffix = #args == 1 and " argument)." or " arguments)."
-        error("Invalid positional argument " .. maxPositionalParam .. " (there " .. argsPrefix .. #args .. argsSuffix)
+    -- TODO: Cleanup suffix and prefix garbage.
+
+    if self.biggestPositionalParam ~= 0 and self.biggestPositionalParam < #self.args then
+        local argsPrefix = #self.args == 1 and "is " or "are "
+        local argsSuffix = #self.args == 1 and " argument)." or " arguments)."
+        error("Invalid positional argument " .. self.biggestPositionalParam .. " (there " .. argsPrefix .. #self.args .. argsSuffix)
     end
 
-    if numOfParams ~= #args then
-        local paramSuffix = numOfParams == 1 and " parameter " or " parameters "
-        local argsPrefix = #args == 1 and "is " or "are "
-        local argsSuffix = #args == 1 and " argument." or " arguments."
+    if self.numOfParams ~= #self.args then
+        local paramSuffix = self.numOfParams == 1 and " parameter " or " parameters "
+        local argsPrefix = #self.args == 1 and "is " or "are "
+        local argsSuffix = #self.args == 1 and " argument." or " arguments."
 
-        error(numOfParams .. paramSuffix .. "found in template string, but there " .. argsPrefix .. #args .. argsSuffix)
+        error(self.numOfParams .. paramSuffix .. "found in template string, but there " .. argsPrefix .. #self.args .. argsSuffix)
     end
 end
 
-local function outputBuffer()
-    local buffer = {}
-
-    function buffer:write(value)
-        table.insert(self, value)
-    end
-
-    function buffer:finish()
-        return table.concat(self, "")
-    end
-
-    return buffer
+function Formatter:finish()
+    return table.concat(self.buffer, "")
 end
 
+--< Module >--
 local function fmt(template, ...)
-    local buffer = outputBuffer()
+    local formatter = Formatter.new()
     
-    writeFmt(buffer, template, ...)
+    formatter:writeFmt(template, ...)
 
-    return buffer:finish()
+    return formatter:finish()
 end
 
 return fmt
