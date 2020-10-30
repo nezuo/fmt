@@ -96,21 +96,25 @@ function Formatter:writeFmt(template, ...)
             break
         end
     end
+    
+    local function amountify(amount)
+        return amount == 1 and "is " .. amount or "are " .. amount
+    end
 
-    -- TODO: Cleanup suffix and prefix garbage.
+    local function pluralize(amount, string)
+        if amount == 1 then
+            return string
+        else
+            return string .. "s"
+        end
+    end
 
     if self.biggestPositionalParam ~= 0 and self.biggestPositionalParam < #self.args then
-        local argsPrefix = #self.args == 1 and "is " or "are "
-        local argsSuffix = #self.args == 1 and " argument)." or " arguments)."
-        error("Invalid positional argument " .. self.biggestPositionalParam .. " (there " .. argsPrefix .. #self.args .. argsSuffix)
+        error("Invalid positional argument " .. self.biggestPositionalParam .. " (there " .. amountify(#self.args) .. " " .. pluralize(#self.args, "argument") .. ").")
     end
 
     if self.numOfParams ~= #self.args then
-        local paramSuffix = self.numOfParams == 1 and " parameter " or " parameters "
-        local argsPrefix = #self.args == 1 and "is " or "are "
-        local argsSuffix = #self.args == 1 and " argument." or " arguments."
-
-        error(self.numOfParams .. paramSuffix .. "found in template string, but there " .. argsPrefix .. #self.args .. argsSuffix)
+        error(self.numOfParams .. " " .. pluralize(self.numOfParams, "parameter") .. " found in template string, but there " .. amountify(#self.args) .. " " .. pluralize(#self.args, "argument") .. ".")
     end
 end
 
