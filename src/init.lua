@@ -1,6 +1,3 @@
--- TODO: Errors
--- TODO: Named parameters
-
 local KEYWORDS = {
     ["and"] = true, ["break"] = true, ["do"] = true, ["else"] = true,
     ["elseif"] = true, ["end"] = true, ["false"] = true, ["for"] = true,
