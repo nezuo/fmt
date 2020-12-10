@@ -63,7 +63,7 @@ local function interpolate(formatSpecifier, writer)
     elseif formatSpecifier == "" then
         return interpolateDisplayParameter(writer)
     else
-        error("Unsupported format specifier " .. formatSpecifier, 2) -- TODO: Copy rust error.
+        error("Unsupported format specifier " .. formatSpecifier, 2)
     end
 end
 
