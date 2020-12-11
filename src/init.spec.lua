@@ -50,16 +50,16 @@ return function()
     end)
 
     it("should format positional parameter", function()
-        expect(bufferToString(fmt("{2} {} {1} {}", 1, 2))).to.equal("2 1 1 2")
+        expect(bufferToString(fmt("{1} {} {0} {}", 1, 2))).to.equal("2 1 1 2")
     end)
 
     it("should format extra positional parameter", function()
-        expect(bufferToString(fmt("{} {2}", 1, 2))).to.equal("1 2")
+        expect(bufferToString(fmt("{} {1}", 1, 2))).to.equal("1 2")
     end)
 
     it("should throw with extra parameter", function()
         expect(function()
-            fmt("{} {2} {} {}", 1, 2)
+            fmt("{} {1} {} {}", 1, 2)
         end).to.throw("3 parameters found in template string, but there are 2 arguments.")
     end)
 
@@ -74,19 +74,23 @@ return function()
     it("should throw with a negative positional parameter", function()
         expect(function()
             fmt("{-1}", 1)
-        end).to.throw("Unsupported format specifier `-1`")
+        end).to.throw("Invalid positional parameter `-1`.")
+
+        expect(function()
+            fmt("{1.5}", 1)
+        end).to.throw("Invalid positional parameter `1.5`.")
     end)
 
     it("should throw with an invalid positional parameter", function()
         expect(function()
-            fmt("{2}", 1)
-        end).to.throw("Invalid positional argument 2 (there is 1 argument).")
+            fmt("{1}", 1)
+        end).to.throw("Invalid positional argument 1 (there is 1 argument).")
     end)
 
     it("should throw when more arguments than positional parameters are provided", function()
         expect(function()
-            fmt("{3}", 1, 2)
-        end).to.throw("Invalid positional argument 3 (there are 2 arguments).")
+            fmt("{2}", 1, 2)
+        end).to.throw("Invalid positional argument 2 (there are 2 arguments).")
     end)
 
     it("should format named parameter", function()
@@ -110,14 +114,14 @@ return function()
     end)
 
     it("should format named, regular, and positional parameters", function()
-        expect(bufferToString(fmt("Hello, {name}! How {} you {2}, {name}?", "are", "today", {
+        expect(bufferToString(fmt("Hello, {name}! How {} you {1}, {name}?", "are", "today", {
             name = "Micah";
         }))).to.equal("Hello, Micah! How are you today, Micah?")
     end)
 
     it("should throw with extra parameters", function()
         expect(function()
-            fmt("Hello, {name}! How {} you {2}, {name}? {} {}", "are", "today", {
+            fmt("Hello, {name}! How {} you {1}, {name}? {} {}", "are", "today", {
                 name = "Micah";
             })
         end).to.throw("3 parameters found in template string, but there are 2 arguments.")
@@ -125,7 +129,7 @@ return function()
 
     it("should throw with extra arguments", function()
         expect(function()
-            fmt("Hello, {name}! How {} you {2}, {name}? {}", "are", "today", "yes", {
+            fmt("Hello, {name}! How {} you {1}, {name}? {}", "are", "today", "yes", {
                 name = "Micah";
             })
         end).to.throw("2 parameters found in template string, but there are 3 arguments.")
@@ -145,7 +149,7 @@ return function()
     it("should throw with invalid enhanced parameter", function()
         expect(function()
             fmt("{:!}")
-        end).to.throw("Unsupported format specifier `!`.")
+        end).to.throw("Unsupported format parameter `!`.")
     end)
 
     it("should add spaces to fit minimum width", function()
@@ -157,22 +161,20 @@ return function()
     end)
 
     it("should handle sign", function()
-        expect(bufferToString(fmt("{}", 5))).to.equal("5")
-        expect(bufferToString(fmt("{:+}", 5))).to.equal("+5")
-        expect(bufferToString(fmt("{:+}", -5))).to.equal("-5")
-        expect(bufferToString(fmt("{:+}", 0))).to.equal("+0")
-        expect(bufferToString(fmt("{:+}", "hello"))).to.equal("hello")
+        expect(bufferToString(fmt("{positive} {positive:+} {negative:+} {zero:+} {message:+}", {
+            positive = 5;
+            negative = -5;
+            zero = 0;
+            message = "hello";
+        }))).to.equal("5 +5 -5 +0 hello")
     end)
 
     it("should handle precision", function()
-        expect(bufferToString(fmt("{:.5}", 5))).to.equal("5.00000")
-        expect(bufferToString(fmt("{:.3}", 5.0001))).to.equal("5.000")
+        expect(bufferToString(fmt("{0:.5} {1:.3}", 5, 5.0001))).to.equal("5.00000 5.000")
     end)
 
     it("should handle leading zeros", function()
-        expect(bufferToString(fmt("{:05}", 5))).to.equal("00005")
-        expect(bufferToString(fmt("{:02}", 42))).to.equal("42")
-        expect(bufferToString(fmt("{:01}", 42))).to.equal("42")
+        expect(bufferToString(fmt("{0:05} {1:02} {1:01}", 5, 42))).to.equal("00005 42 42")
     end)
 
     it("should handle edge case", function()

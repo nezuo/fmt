@@ -19,42 +19,23 @@ local function pluralize(amount, string)
     return amount == 1 and string or string .. "s"
 end
 
-local function interpolatePositionalParameter(writer, positionalParameter)
-    if positionalParameter > #writer.arguments then
-        error("Invalid positional argument " .. positionalParameter .. " (there " .. amountify(#writer.arguments) .. " " .. pluralize(#writer.arguments, "argument") .. ").", 5)
+local function addLeadingZeros(argument, leadingZeros)
+    if type(argument) ~= "number" then
+        return argument
+    else
+        argument = tostring(argument)
+
+        return string.rep("0", leadingZeros - #argument) .. argument
     end
-
-    writer.biggestPositionalParameter = math.max(writer.biggestPositionalParameter, positionalParameter)
-
-    return tostring(writer.arguments[positionalParameter])
 end
 
-local function interpolateNamedParameter(writer, parameter)
-    if not isValidVariable(parameter) then
-        error("Unsupported format specifier `" .. parameter .. "`.", 5)
-    end
+local function addWidth(argument, width)
+    argument = tostring(argument)
 
-    if writer.namedParameters == nil or writer.namedParameters[parameter] == nil then
-        error("There is no named argument `" .. parameter .. "`.", 5)
-    end
-
-    writer.hadNamedParameter = true
-
-    return tostring(writer.namedParameters[parameter])
+    return argument .. string.rep(" ", width - #argument)
 end
 
-local function interpolateDisplayParameter(writer)
-    writer.currentArgument += 1
-    writer.numberOfParameters += 1
-
-    return tostring(writer.arguments[writer.currentArgument])
-end
-
-local function interpolateDebugImpl(writer, isExtendedForm)
-    writer.currentArgument += 1
-    writer.numberOfParameters += 1
-
-    local argument = writer.arguments[writer.currentArgument]
+local function debugImpl(argument, isExtendedForm)
     local argumentType = typeof(argument)
 
     if argumentType == "string" then
@@ -73,107 +54,93 @@ local function interpolateDebugImpl(writer, isExtendedForm)
     elseif argumentType == "Instance" then
         return argument:GetFullName()
     else
-        return tostring(argument)
+        return argument
     end
 end
 
-local function interpolateWithWidth(writer, width)
-    writer.currentArgument += 1
-    writer.numberOfParameters += 1
-
-    local argument = tostring(writer.arguments[writer.currentArgument])
-
-    if #argument < width then
-        return argument .. string.rep(" ", width - #argument)
-    end
-
-    return argument
-end
-
-local function interpolateWithSign(writer)
-    writer.currentArgument += 1
-    writer.numberOfParameters += 1
-
-    local argument = writer.arguments[writer.currentArgument]
-
+local function setPrecision(argument, precision)
     if type(argument) ~= "number" then
-        return tostring(argument)
-    else
-        return argument >= 0 and "+" .. tostring(argument) or tostring(argument)
-    end
-end
-
-local function interpolateWithPrecision(writer, precision)
-    writer.currentArgument += 1
-    writer.numberOfParameters += 1
-
-    local argument = writer.arguments[writer.currentArgument]
-
-    if type(argument) ~= "number" then
-        return tostring(argument)
+        return argument
     else
         return string.format("%." .. precision .. "f", argument)
     end
 end
 
-local function interpolateWithLeadingZeros(writer, leadingZeros)
-    writer.currentArgument += 1
-    writer.numberOfParameters += 1
-
-    local argument = writer.arguments[writer.currentArgument]
-
+local function showSign(argument)
     if type(argument) ~= "number" then
-        return tostring(argument)
+        return argument
     else
-        argument = tostring(argument)
-
-        if #argument >= leadingZeros then
-            return argument
-        else
-            return string.rep("0", leadingZeros - #argument) .. argument
-        end
+        return argument >= 0 and "+" .. tostring(argument) or tostring(argument)
     end
 end
 
--- TODO: putting named/positional argument on left side of :
+-- TODO: Better error handling?
 
-local function interpolate(formatSpecifier, writer)
-    local firstCharacter = string.sub(formatSpecifier, 1, 1)
-    local positionalParameter = firstCharacter ~= "-" and tonumber(formatSpecifier) or nil
+local function interpolate(parameter, writer)
+    local formatParameterStart = string.find(parameter, ":")
+    local leftSide = string.sub(parameter, 1, formatParameterStart and formatParameterStart - 1 or -1)
+    local rightSide = formatParameterStart ~= nil and string.sub(parameter, formatParameterStart + 1 or -1) or nil
 
+    local positionalParameter = tonumber(leftSide)
+    local isRegularParameter = leftSide == ""
+
+    local argument
     if positionalParameter ~= nil then
-        return interpolatePositionalParameter(writer, positionalParameter)
-    elseif firstCharacter == ":" then
-        local number = tonumber(string.sub(formatSpecifier, 2))
-
-        if formatSpecifier == ":" then
-            return interpolateDisplayParameter(writer)
-        elseif formatSpecifier == ":?" then
-            -- This should use the equivalent of Rust's `Debug`, invented for
-            -- this library as __fmtDebug.
-
-            return interpolateDebugImpl(writer, false)
-        elseif formatSpecifier == ":#?" then
-            -- This should use the equivalent of Rust's `Debug` with the
-            -- `alternate` (ie expanded) flag set.
-
-            return interpolateDebugImpl(writer, true)
-        elseif formatSpecifier == ":+" then
-            return interpolateWithSign(writer)
-        elseif string.sub(formatSpecifier, 2, 2) == "." and tonumber(string.sub(formatSpecifier, 3)) ~= nil then
-            return interpolateWithPrecision(writer, tonumber(string.sub(formatSpecifier, 3)))
-        elseif string.sub(formatSpecifier, 2, 2) == "0" and tonumber(string.sub(formatSpecifier, 3)) ~= nil then
-            return interpolateWithLeadingZeros(writer, tonumber(string.sub(formatSpecifier, 3)))
-        elseif number ~= nil and number > 0 then
-            return interpolateWithWidth(writer, number)
-        else
-            error("Unsupported format specifier `" .. string.sub(formatSpecifier, 2) .. "`.", 4)
+        if positionalParameter < 0 or positionalParameter % 1 ~= 0 then
+            error("Invalid positional parameter `" .. positionalParameter .. "`.", 4)
         end
-    elseif formatSpecifier ~= "" then
-        return interpolateNamedParameter(writer, formatSpecifier)
-    elseif formatSpecifier == "" then
-        return interpolateDisplayParameter(writer)
+
+        if positionalParameter + 1 > #writer.arguments then
+            error("Invalid positional argument " .. positionalParameter .. " (there " .. amountify(#writer.arguments) .. " " .. pluralize(#writer.arguments, "argument") .. "). Note: Positional arguments are zero-based.", 4)
+        end
+    
+        writer.biggestPositionalParameter = math.max(writer.biggestPositionalParameter, positionalParameter + 1)
+    
+        argument = writer.arguments[positionalParameter + 1]
+    elseif isRegularParameter then
+        writer.currentArgument += 1
+        writer.numberOfParameters += 1
+
+        argument = writer.arguments[writer.currentArgument]
+    else
+        if not isValidVariable(leftSide) then
+            error("Invalid named parameter `" .. leftSide .. "`.", 4)
+        end
+
+        if writer.namedParameters == nil or writer.namedParameters[leftSide] == nil then
+            error("There is no named argument `" .. leftSide .. "`.", 4)
+        end
+
+        writer.hadNamedParameter = true
+
+        argument = writer.namedParameters[leftSide]
     end
+
+    -- TODO: error in left side?
+
+    if rightSide ~= nil then
+        local number = tonumber(rightSide)
+        local firstCharacter = string.sub(rightSide, 1, 1)
+        local numberAfterFirstCharacter = tonumber(string.sub(rightSide, 2))
+
+        if rightSide == "?" then
+            argument = debugImpl(argument, false)
+        elseif rightSide == "#?" then
+            argument = debugImpl(argument, true)
+        elseif rightSide == "+" then
+            argument = showSign(argument)
+        elseif firstCharacter == "." and numberAfterFirstCharacter ~= nil then
+            argument = setPrecision(argument, numberAfterFirstCharacter)
+        elseif firstCharacter == "0" and numberAfterFirstCharacter ~= nil then
+            argument = addLeadingZeros(argument, numberAfterFirstCharacter)
+        elseif number ~= nil and number > 0 then
+            argument = addWidth(argument, number)
+        else
+            error("Unsupported format parameter `" .. rightSide .. "`.", 4)
+        end
+    end
+
+    return tostring(argument)
 end
 
 local function composeWriter(arguments)
