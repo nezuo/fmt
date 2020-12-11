@@ -21,7 +21,7 @@ end
 
 local function interpolatePositionalParameter(writer, positionalParameter)
     if positionalParameter > #writer.arguments then
-        error("Invalid positional argument " .. positionalParameter .. " (there " .. amountify(#writer.arguments) .. " " .. pluralize(#writer.arguments, "argument") .. ").")
+        error("Invalid positional argument " .. positionalParameter .. " (there " .. amountify(#writer.arguments) .. " " .. pluralize(#writer.arguments, "argument") .. ").", 5)
     end
 
     writer.biggestPositionalParameter = math.max(writer.biggestPositionalParameter, positionalParameter)
@@ -31,11 +31,11 @@ end
 
 local function interpolateNamedParameter(writer, parameter)
     if not isValidVariable(parameter) then
-        error("Unsupported format specifier `" .. parameter .. "`.")
+        error("Unsupported format specifier `" .. parameter .. "`.", 5)
     end
 
     if writer.namedParameters == nil or writer.namedParameters[parameter] == nil then
-        error("There is no named argument `" .. parameter .. "`.")
+        error("There is no named argument `" .. parameter .. "`.", 5)
     end
 
     writer.hadNamedParameter = true
@@ -57,15 +57,16 @@ local function interpolate(formatSpecifier, writer)
     if positionalParameter ~= nil then
         return interpolatePositionalParameter(writer, positionalParameter)
     elseif firstCharacter == ":" then
+        -- TODO
         error("Cannot handle special format character.") 
     elseif formatSpecifier ~= "" then
         return interpolateNamedParameter(writer, formatSpecifier)
     elseif formatSpecifier == "" then
         return interpolateDisplayParameter(writer)
-    else
-        error("Unsupported format specifier " .. formatSpecifier, 2)
     end
 end
+
+-- TODO: Custom parameters, debug
 
 local function composeWriter(arguments)
     local lastArgument = arguments[#arguments]
@@ -108,12 +109,12 @@ local function writeFmt(buffer, template, ...)
             index = brace + 2
         else
             if braceCharacter == "}" then
-                error("Unmatched '}'. If you intended to write '}', you can escape it using '}}'.")
+                error("Unmatched '}'. If you intended to write '}', you can escape it using '}}'.", 3)
             else
                 local closeBrace = string.find(template, "}", index + 1)
 
                 if closeBrace == nil then
-                    error("Expected a '}' to close format specifier. If you intended to write '{', you can escape it using '{{'.")
+                    error("Expected a '}' to close format specifier. If you intended to write '{', you can escape it using '{{'.", 3)
                 else
                     -- If there are any unwritten characters before this
                     -- parameter, write them to the buffer.
@@ -134,11 +135,11 @@ local function writeFmt(buffer, template, ...)
     local numberOfArguments = writer.hadNamedParameter and #writer.arguments - 1 or #writer.arguments
 
     if writer.numberOfParameters > numberOfArguments  then
-        error(writer.numberOfParameters .. " " .. pluralize(writer.numberOfParameters, "parameter") .. " found in template string, but there " .. amountify(numberOfArguments) .. " " .. pluralize(numberOfArguments, "argument") .. ".")
+        error(writer.numberOfParameters .. " " .. pluralize(writer.numberOfParameters, "parameter") .. " found in template string, but there " .. amountify(numberOfArguments) .. " " .. pluralize(numberOfArguments, "argument") .. ".", 3)
     end
 
     if numberOfArguments > writer.numberOfParameters and writer.biggestPositionalParameter < numberOfArguments then
-        error(writer.numberOfParameters .. " " .. pluralize(writer.numberOfParameters, "parameter") .. " found in template string, but there " .. amountify(numberOfArguments) .. " " .. pluralize(numberOfArguments, "argument") .. ".")
+        error(writer.numberOfParameters .. " " .. pluralize(writer.numberOfParameters, "parameter") .. " found in template string, but there " .. amountify(numberOfArguments) .. " " .. pluralize(numberOfArguments, "argument") .. ".", 3)
     end
 end
 
