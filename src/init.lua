@@ -50,6 +50,33 @@ local function interpolateDisplayParameter(writer)
     return tostring(writer.arguments[writer.currentArgument])
 end
 
+local function interpolateDebugImpl(writer, isExtendedForm)
+    writer.currentArgument += 1
+    writer.numberOfParameters += 1
+
+    local argument = writer.arguments[writer.currentArgument]
+    local argumentType = typeof(argument)
+
+    if argumentType == "string" then
+        return string.format("%q", argument)
+    elseif argumentType == "table" then
+        local argumentMetatable = getmetatable(argument)
+
+        if argumentMetatable ~= nil and argumentMetatable.__fmtDebug ~= nil then
+            -- This type implements the metamethod we made up to line up with
+            -- Rust's `Debug` trait.
+
+            return argumentMetatable.__fmtDebug(argument, isExtendedForm)
+        else
+            return argument
+        end
+    elseif argumentType == "Instance" then
+        return argument:GetFullName()
+    else
+        return tostring(argument)
+    end
+end
+
 local function interpolate(formatSpecifier, writer)
     local firstCharacter = string.sub(formatSpecifier, 1, 1)
     local positionalParameter = firstCharacter ~= "-" and tonumber(formatSpecifier) or nil
@@ -57,16 +84,27 @@ local function interpolate(formatSpecifier, writer)
     if positionalParameter ~= nil then
         return interpolatePositionalParameter(writer, positionalParameter)
     elseif firstCharacter == ":" then
-        -- TODO
-        error("Cannot handle special format character.") 
+        if formatSpecifier == ":" then
+            return interpolateDisplayParameter(writer)
+        elseif formatSpecifier == ":?" then
+            -- This should use the equivalent of Rust's `Debug`, invented for
+            -- this library as __fmtDebug.
+
+            return interpolateDebugImpl(writer, false)
+        elseif formatSpecifier == ":#?" then
+            -- This should use the equivalent of Rust's `Debug` with the
+            -- `alternate` (ie expanded) flag set.
+
+            return interpolateDebugImpl(writer, true)
+        else
+            error("Unsupported format specifier `" .. string.sub(formatSpecifier, 2) .. "`.", 4)
+        end
     elseif formatSpecifier ~= "" then
         return interpolateNamedParameter(writer, formatSpecifier)
     elseif formatSpecifier == "" then
         return interpolateDisplayParameter(writer)
     end
 end
-
--- TODO: Custom parameters, debug
 
 local function composeWriter(arguments)
     local lastArgument = arguments[#arguments]

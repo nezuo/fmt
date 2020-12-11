@@ -1,3 +1,5 @@
+local Workspace = game:GetService("Workspace")
+
 return function()
     local fmt = require(script.Parent)
 
@@ -123,5 +125,22 @@ return function()
                 name = "Micah";
             })
         end).to.throw("2 parameters found in template string, but there are 3 arguments.")
+    end)
+
+    it("should use debug form", function()
+        expect(bufferToString(fmt("{}", "\""))).to.equal("\"")
+        expect(bufferToString(fmt("{:?}", "\""))).to.equal("\"\\\"\"")
+
+        local folder = Instance.new("Folder")
+        folder.Parent = Workspace
+
+        expect(fmt("{}", folder)[1]).to.equal("Folder")
+        expect(fmt("{:?}", folder)[1]).to.equal("Workspace.Folder")
+    end)
+
+    it("should throw with invalid enhanced parameter", function()
+        expect(function()
+            fmt("{:!}")
+        end).to.throw("Unsupported format specifier `!`.")
     end)
 end
