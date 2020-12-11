@@ -77,6 +77,66 @@ local function interpolateDebugImpl(writer, isExtendedForm)
     end
 end
 
+local function interpolateWithWidth(writer, width)
+    writer.currentArgument += 1
+    writer.numberOfParameters += 1
+
+    local argument = tostring(writer.arguments[writer.currentArgument])
+
+    if #argument < width then
+        return argument .. string.rep(" ", width - #argument)
+    end
+
+    return argument
+end
+
+local function interpolateWithSign(writer)
+    writer.currentArgument += 1
+    writer.numberOfParameters += 1
+
+    local argument = writer.arguments[writer.currentArgument]
+
+    if type(argument) ~= "number" then
+        return tostring(argument)
+    else
+        return argument >= 0 and "+" .. tostring(argument) or tostring(argument)
+    end
+end
+
+local function interpolateWithPrecision(writer, precision)
+    writer.currentArgument += 1
+    writer.numberOfParameters += 1
+
+    local argument = writer.arguments[writer.currentArgument]
+
+    if type(argument) ~= "number" then
+        return tostring(argument)
+    else
+        return string.format("%." .. precision .. "f", argument)
+    end
+end
+
+local function interpolateWithLeadingZeros(writer, leadingZeros)
+    writer.currentArgument += 1
+    writer.numberOfParameters += 1
+
+    local argument = writer.arguments[writer.currentArgument]
+
+    if type(argument) ~= "number" then
+        return tostring(argument)
+    else
+        argument = tostring(argument)
+
+        if #argument >= leadingZeros then
+            return argument
+        else
+            return string.rep("0", leadingZeros - #argument) .. argument
+        end
+    end
+end
+
+-- TODO: putting named/positional argument on left side of :
+
 local function interpolate(formatSpecifier, writer)
     local firstCharacter = string.sub(formatSpecifier, 1, 1)
     local positionalParameter = firstCharacter ~= "-" and tonumber(formatSpecifier) or nil
@@ -84,6 +144,8 @@ local function interpolate(formatSpecifier, writer)
     if positionalParameter ~= nil then
         return interpolatePositionalParameter(writer, positionalParameter)
     elseif firstCharacter == ":" then
+        local number = tonumber(string.sub(formatSpecifier, 2))
+
         if formatSpecifier == ":" then
             return interpolateDisplayParameter(writer)
         elseif formatSpecifier == ":?" then
@@ -96,6 +158,14 @@ local function interpolate(formatSpecifier, writer)
             -- `alternate` (ie expanded) flag set.
 
             return interpolateDebugImpl(writer, true)
+        elseif formatSpecifier == ":+" then
+            return interpolateWithSign(writer)
+        elseif string.sub(formatSpecifier, 2, 2) == "." and tonumber(string.sub(formatSpecifier, 3)) ~= nil then
+            return interpolateWithPrecision(writer, tonumber(string.sub(formatSpecifier, 3)))
+        elseif string.sub(formatSpecifier, 2, 2) == "0" and tonumber(string.sub(formatSpecifier, 3)) ~= nil then
+            return interpolateWithLeadingZeros(writer, tonumber(string.sub(formatSpecifier, 3)))
+        elseif number ~= nil and number > 0 then
+            return interpolateWithWidth(writer, number)
         else
             error("Unsupported format specifier `" .. string.sub(formatSpecifier, 2) .. "`.", 4)
         end
@@ -120,7 +190,11 @@ local function composeWriter(arguments)
 end
 
 local function writeToBuffer(buffer, value)
-    table.insert(buffer, value)
+    if type(value) == "string" and type(buffer[#buffer]) == "string" then
+        buffer[#buffer] ..= value
+    else
+        table.insert(buffer, value)
+    end
 end
 
 local function writeFmt(buffer, template, ...)
@@ -186,7 +260,7 @@ local function fmt(template, ...)
 
     writeFmt(buffer, template, ...)
 
-    return buffer
+    return table.unpack(buffer)
 end
 
 return fmt

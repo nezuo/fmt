@@ -4,7 +4,7 @@ return function()
     local fmt = require(script.Parent)
 
     local function bufferToString(buffer)
-        return table.concat(buffer, "")
+        return table.concat(table.pack(buffer), "")
     end
 
     it("should throw when format specifier is not closed", function()
@@ -39,6 +39,10 @@ return function()
 
     it("should return an identical string", function()
         expect(bufferToString(fmt("Hello, world!"))).to.equal("Hello, world!")
+    end)
+
+    it("should escape", function()
+        expect(bufferToString(fmt("{{}}"))).to.equal("{}")
     end)
 
     it("should replace parameter", function()
@@ -134,13 +138,47 @@ return function()
         local folder = Instance.new("Folder")
         folder.Parent = Workspace
 
-        expect(fmt("{}", folder)[1]).to.equal("Folder")
-        expect(fmt("{:?}", folder)[1]).to.equal("Workspace.Folder")
+        expect((fmt("{}", folder))).to.equal("Folder")
+        expect((fmt("{:?}", folder))).to.equal("Workspace.Folder")
     end)
 
     it("should throw with invalid enhanced parameter", function()
         expect(function()
             fmt("{:!}")
         end).to.throw("Unsupported format specifier `!`.")
+    end)
+
+    it("should add spaces to fit minimum width", function()
+        expect(bufferToString(fmt("{:5}", "x"))).to.equal("x    ")
+    end)
+
+    it("should not add spaces when greater than minimum width", function()
+        expect(bufferToString(fmt("{:5}", "hello"))).to.equal("hello")
+    end)
+
+    it("should handle sign", function()
+        expect(bufferToString(fmt("{}", 5))).to.equal("5")
+        expect(bufferToString(fmt("{:+}", 5))).to.equal("+5")
+        expect(bufferToString(fmt("{:+}", -5))).to.equal("-5")
+        expect(bufferToString(fmt("{:+}", 0))).to.equal("+0")
+        expect(bufferToString(fmt("{:+}", "hello"))).to.equal("hello")
+    end)
+
+    it("should handle precision", function()
+        expect(bufferToString(fmt("{:.5}", 5))).to.equal("5.00000")
+        expect(bufferToString(fmt("{:.3}", 5.0001))).to.equal("5.000")
+    end)
+
+    it("should handle leading zeros", function()
+        expect(bufferToString(fmt("{:05}", 5))).to.equal("00005")
+        expect(bufferToString(fmt("{:02}", 42))).to.equal("42")
+        expect(bufferToString(fmt("{:01}", 42))).to.equal("42")
+    end)
+
+    it("should handle edge case", function()
+        local buffer = table.pack(fmt("{} {} {}", "hello", 5, "yes"))
+
+        expect(buffer[1]).to.equal("hello 5 yes")
+        expect(buffer[2]).never.to.be.ok()
     end)
 end
