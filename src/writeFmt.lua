@@ -19,65 +19,65 @@ local function pluralize(amount, string)
     return amount == 1 and string or string .. "s"
 end
 
-local function leadingZeros(buffer, argument, argumentLeadingZeros)
+local function leadingZeros(formatter, argument, argumentLeadingZeros)
     if type(argument) ~= "number" then
-        buffer:writeRaw(tostring(argument))
+        formatter:writeRaw(tostring(argument))
     else
         argument = tostring(argument)
 
-        buffer:writeRaw(string.rep("0", argumentLeadingZeros - #argument) .. argument)
+        formatter:writeRaw(string.rep("0", argumentLeadingZeros - #argument) .. argument)
     end
 end
 
-local function width(buffer, argument, argumentWidth)
+local function width(formatter, argument, argumentWidth)
     argument = tostring(argument)
 
-    buffer:writeRaw(argument .. string.rep(" ", argumentWidth - #argument))
+    formatter:writeRaw(argument .. string.rep(" ", argumentWidth - #argument))
 end
 
-local function debugTable(buffer, tbl)
-    buffer:writeRaw("{")
+local function debugTable(formatter, tbl)
+    formatter:writeRaw("{")
 
     for key, value in pairs(tbl) do
-        buffer:write("[{:?}] = {:?}", key, value)
+        formatter:write("[{:?}] = {:?}", key, value)
 
         if next(tbl, key) ~= nil then
-            buffer:writeRaw(", ")
+            formatter:writeRaw(", ")
         end
     end
 
-    buffer:writeRaw("}")
+    formatter:writeRaw("}")
 end
 
-local function debugTableExtended(buffer, tbl)
+local function debugTableExtended(formatter, tbl)
 	-- Special case for empty tables.
 	if next(tbl) == nil then
-		buffer:writeRaw("{}")
+		formatter:writeRaw("{}")
 		return
 	end
 
-	buffer:writeLineRaw("{")
-	buffer:indent()
+	formatter:writeLineRaw("{")
+	formatter:indent()
 
     for key, value in pairs(tbl) do
-        buffer:write("[{:?}] = {:#?}", key, value)
+        formatter:write("[{:?}] = {:#?}", key, value)
 
         if next(tbl, key) ~= nil then
-            buffer:writeRaw(",")
+            formatter:writeRaw(",")
         end
 
-		buffer:writeLine("")
+		formatter:writeLine("")
 	end
 
-	buffer:unindent()
-	buffer:writeRaw("}")
+	formatter:unindent()
+	formatter:writeRaw("}")
 end
 
-local function debugImpl(buffer, argument, isExtendedForm)
+local function debugImpl(formatter, argument, isExtendedForm)
     local argumentType = typeof(argument)
 
     if argumentType == "string" then
-        buffer:writeRaw(string.format("%q", argument))
+        formatter:writeRaw(string.format("%q", argument))
     elseif argumentType == "table" then
         local argumentMetatable = getmetatable(argument)
 
@@ -87,44 +87,44 @@ local function debugImpl(buffer, argument, isExtendedForm)
 
             -- TODO: Handle this weird case with new output...
 
-            argumentMetatable.__fmtDebug(argument, buffer, isExtendedForm)
+            argumentMetatable.__fmtDebug(argument, formatter, isExtendedForm)
         else
-            buffer:addTable(argument)
+            formatter:addTable(argument)
 
-            buffer:lock()
+            formatter:lock()
 
             if isExtendedForm then
-                debugTableExtended(buffer, argument)
+                debugTableExtended(formatter, argument)
             else
-                debugTable(buffer, argument)
+                debugTable(formatter, argument)
             end
 
-            buffer:unlock()
+            formatter:unlock()
         end
     elseif argumentType == "Instance" then
-        buffer:writeRaw(argument:GetFullName())
+        formatter:writeRaw(argument:GetFullName())
     else
-        buffer:writeRaw(tostring(argument))
+        formatter:writeRaw(tostring(argument))
     end
 end
 
-local function precision(buffer, argument, argumentPrecision)
+local function precision(formatter, argument, argumentPrecision)
     if type(argument) ~= "number" then
-        buffer:writeRaw(tostring(argument))
+        formatter:writeRaw(tostring(argument))
     else
-        buffer:writeRaw(string.format("%." .. argumentPrecision .. "f", tostring(argument)))
+        formatter:writeRaw(string.format("%." .. argumentPrecision .. "f", tostring(argument)))
     end
 end
 
-local function sign(buffer, argument)
+local function sign(formatter, argument)
     if type(argument) ~= "number" then
-        buffer:writeRaw(tostring(argument))
+        formatter:writeRaw(tostring(argument))
     else
-        buffer:writeRaw(argument >= 0 and "+" .. tostring(argument) or tostring(argument))
+        formatter:writeRaw(argument >= 0 and "+" .. tostring(argument) or tostring(argument))
     end
 end
 
-local function interpolate(buffer, parameter, writer)
+local function interpolate(formatter, parameter, writer)
     local formatParameterStart = string.find(parameter, ":")
     local leftSide = string.sub(parameter, 1, formatParameterStart and formatParameterStart - 1 or -1)
     local rightSide = formatParameterStart ~= nil and string.sub(parameter, formatParameterStart + 1 or -1) or nil
@@ -169,22 +169,22 @@ local function interpolate(buffer, parameter, writer)
         local numberAfterFirstCharacter = tonumber(string.sub(rightSide, 2))
 
         if rightSide == "?" then
-            debugImpl(buffer, argument, false)
+            debugImpl(formatter, argument, false)
         elseif rightSide == "#?" then
-            debugImpl(buffer, argument, true)
+            debugImpl(formatter, argument, true)
         elseif rightSide == "+" then
-            sign(buffer, argument)
+            sign(formatter, argument)
         elseif firstCharacter == "." and numberAfterFirstCharacter ~= nil then
-            precision(buffer, argument, numberAfterFirstCharacter)
+            precision(formatter, argument, numberAfterFirstCharacter)
         elseif firstCharacter == "0" and numberAfterFirstCharacter ~= nil then
-            leadingZeros(buffer, argument, numberAfterFirstCharacter)
+            leadingZeros(formatter, argument, numberAfterFirstCharacter)
         elseif number ~= nil and number > 0 then
-            width(buffer, argument, number)
+            width(formatter, argument, number)
         else
             error("Unsupported format parameter `" .. rightSide .. "`.", 4)
         end
     else
-        buffer:writeRaw(tostring(argument))
+        formatter:writeRaw(tostring(argument))
     end
 end
 
@@ -200,7 +200,7 @@ local function composeWriter(arguments)
     }
 end
 
-local function writeFmt(buffer, template, ...)
+local function writeFmt(formatter, template, ...)
     local index = 1
     local writer = composeWriter({...})
 
@@ -208,9 +208,9 @@ local function writeFmt(buffer, template, ...)
         local brace = string.find(template, "[%{%}]", index)
 
         -- There are no remaining braces in the string, so we can write the
-        -- rest of the string to the buffer.
+        -- rest of the string to the formatter.
         if brace == nil then
-            buffer:writeRaw(string.sub(template, index))
+            formatter:writeRaw(string.sub(template, index))
             break
         end
 
@@ -220,7 +220,7 @@ local function writeFmt(buffer, template, ...)
         if characterAfterBrace == braceCharacter then
             -- This brace starts a literal '{', written as '{{'.
 
-            buffer:writeRaw(braceCharacter)
+            formatter:writeRaw(braceCharacter)
             index = brace + 2
         else
             if braceCharacter == "}" then
@@ -232,14 +232,14 @@ local function writeFmt(buffer, template, ...)
                     error("Expected a '}' to close format specifier. If you intended to write '{', you can escape it using '{{'.", 3)
                 else
                     -- If there are any unwritten characters before this
-                    -- parameter, write them to the buffer.
+                    -- parameter, write them to the formatter.
                     if brace - index > 0 then
-                        buffer:writeRaw(string.sub(template, index, brace - 1))
+                        formatter:writeRaw(string.sub(template, index, brace - 1))
                     end
 
                     local formatSpecifier = string.sub(template, brace + 1, closeBrace - 1)
 
-                    interpolate(buffer, formatSpecifier, writer)
+                    interpolate(formatter, formatSpecifier, writer)
 
                     index = closeBrace + 1
                 end

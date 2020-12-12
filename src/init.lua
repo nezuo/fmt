@@ -1,19 +1,19 @@
 local Formatter = require(script.Formatter)
 
 local function format(template, ...)
-    local buffer = Formatter.new()
+    local formatter = Formatter.new()
 
-    buffer:write(template, ...)
+    formatter:write(template, ...)
 
-    return buffer:asString()
+    return formatter:asString()
 end
 
 local function output(template, ...)
-    local buffer = Formatter.new()
+    local formatter = Formatter.new()
 
-    buffer:write(template, ...)
+    formatter:write(template, ...)
 
-    return buffer:asTuple()
+    return formatter:asTuple()
 end
 
 -- Wrap the given object in a type that implements the given function as its
