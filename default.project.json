@@ -4,14 +4,8 @@
 		"$className": "DataModel",
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
-			"fmt": {
+			"Fmt": {
 				"$path": "./src"
-			}
-		},
-		"TestService": {
-			"$className": "TestService",
-			"$properties": {
-				"ExecuteWithStudioRun": true
 			},
 			"runTests": {
 				"$path": "./test/runTests.server.lua"

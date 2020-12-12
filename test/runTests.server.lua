@@ -1,7 +1,7 @@
 local ServerScriptService = game:GetService("ServerScriptService")
 
-local TestEZ = require(script.Parent.TestEZ)
+local TestEZ = require(ServerScriptService.TestEZ)
 
 TestEZ.TestBootstrap:run({
-    ServerScriptService.fmt;
+    ServerScriptService.Fmt;
 })
