@@ -181,8 +181,8 @@ return function()
         expect(Fmt.fmt("{:#?}", array)).to.equal("{\n    [1] = 1,\n    [2] = 2,\n    [3] = 3\n}")
     end)
 
-    itSKIP("should handle edge case", function()
-        local buffer = table.pack(Fmt.fmt("{} {} {}", "hello", 5, "yes"))
+    it("should handle edge case", function()
+        local buffer = table.pack(Fmt.output("{} {} {}", "hello", 5, "yes"))
 
         expect(buffer[1]).to.equal("hello 5 yes")
         expect(buffer[2]).never.to.be.ok()
