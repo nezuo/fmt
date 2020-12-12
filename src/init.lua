@@ -1,6 +1,6 @@
 local Formatter = require(script.Formatter)
 
-local function fmt(template, ...)
+local function format(template, ...)
     local buffer = Formatter.new()
 
     buffer:write(template, ...)
@@ -32,7 +32,7 @@ end
 
 return {
     Formatter = Formatter;
-    fmt = fmt;
+    format = format;
     output = output;
     debugify = debugify;
 }
